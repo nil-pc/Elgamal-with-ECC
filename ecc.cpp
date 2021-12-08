@@ -6,24 +6,26 @@
 
 using namespace std;
 
-
+//Coordinate system to define each point in a plane
 typedef struct
 {
 	long int x,y;
 
 }point;
 
+//Values that define the elliptic curve
 typedef struct 
 {
 	long int a, b, p;
 
 }elliptic;
 
+//Calculate m % p
 long int calcMod(long int m, long int p)
 {
 	if (m >= 0)
 	{
-		m = m%p;
+		m = m % p;
 	}
 	else
 	{
@@ -36,6 +38,7 @@ long int calcMod(long int m, long int p)
 	return m;
 }
 
+//Find inverse of a w.r.t b
 long int getInverse(long int a, long int b)
 {
 	long int t, t1, t2, q, r, p;
@@ -62,6 +65,7 @@ long int getInverse(long int a, long int b)
 
 }
 
+//Generate the base point
 point generateBasePoint(elliptic ecc)
 {
 	long int x = 0, y = 0;
@@ -101,6 +105,7 @@ point generateBasePoint(elliptic ecc)
 	return G;
 }
 
+//Add 2 points
 point scalarMult(point p, point q, elliptic ecc)
 {
 	long int slope;
@@ -110,7 +115,7 @@ point scalarMult(point p, point q, elliptic ecc)
 	{
 		den = 2 * p.y;
 		den_inv = getInverse(den, ecc.p);
-		slope = ((pow(p.x, 3) + ecc.a) * den_inv);
+		slope = (((3*pow(p.x, 2)) + ecc.a) * den_inv);
 		slope = calcMod(slope, ecc.p);
 	}
 	else
@@ -127,6 +132,7 @@ point scalarMult(point p, point q, elliptic ecc)
 	return sum;	
 }
 
+//Find the order of base point
 long int findOrder(elliptic ecc, point G)
 {
 	long int order = 2;
@@ -136,21 +142,22 @@ long int findOrder(elliptic ecc, point G)
 
 	while(!((G.x == gen.x) && (G.y == ( ecc.p - gen.y))))
 	{
-    gen = scalarMult(G, gen, ecc);
-    cout<<"order n: "<<order<<"\n x: "<<gen.x<<" y:"<<gen.y;
-    order ++;
+        gen = scalarMult(G, gen, ecc);
+		order ++;
 	}
 	return order - 1;
 }
 
+//Insert and store Private Key
 long int genPrivKey()
 {
 	long int key;
-	cout<<" Enter the private key for public key generation : ";
+	cout<<"\nEnter the private key for public key generation : \n";
 	cin>>key;
 	return key;
 }
 
+//Generate Public Key from Private Key
 point genPubKey(point g, long int n, elliptic ecc)
 {
 	point pub = {g.x, g.y};
@@ -162,14 +169,16 @@ point genPubKey(point g, long int n, elliptic ecc)
 	return pub;
 }
 
+//Insert the random ephimeral key
 long int genEphKey()
 {
 	long int k;
-	cout<<"\nEnter an Ephimeral Key :";
+	cout<<"\nEnter an Ephimeral Key : \n";
 	cin>>k;
 	return k;
 }
 
+//Encryption function : C1 = kG C2 = P + kPubKey 
 void ecc_enc(long int k, point g, point msg, point pA, point* c1, point* c2, elliptic ecc)
 {
 	long int i;
@@ -185,54 +194,55 @@ void ecc_enc(long int k, point g, point msg, point pA, point* c1, point* c2, ell
 	{
 		c = scalarMult(pA, c, ecc);
 	}
-	cout<<"c : ("<<c.x<<","<<c.y<<")";
 	c = scalarMult(msg, c, ecc);
 	c2->x = c.x;
 	c2->y = c.y;
 }
 
+//Decryption function : P = C2 - (PrivKey * C1)
 point ecc_dec(long int n, point c1, point c2, elliptic ecc)
 {
-    point c = { c1.x, c1.y};
-    point dec_msg;
-    long int i;
-    for(i = 2; i<=n; i++)
-    {
-      c = scalarMult(c1, c, ecc);
-    }
-    cout<<"c : ("<<c.x<<","<<c.y<<")";
-    c.y = -c.y;
-    cout<<"c : ("<<c.x<<","<<c.y<<")";
-    dec_msg = scalarMult(c2, c, ecc);
-    return dec_msg;
+	point c = { c1.x, c1.y};
+	point dec_msg;
+	long int i;
+	for(i = 2; i<=n; i++)
+	{
+		c = scalarMult(c1, c, ecc);
+	}
+	c.y = -c.y;
+    	dec_msg = scalarMult(c2, c, ecc);
+    	return dec_msg;
 }
-
 
 int main()
 {
-    elliptic ecc;   
-    point g, c1, c2, msg, dec_msg, pA;
-    long int n, nA, k;
-    cout<<"\nElliptic curve : (y^2)mod p = (x^3 + ax + b) mod p";
-    cout<<"\nEnter values for a, b and p : ";
-    cin>>ecc.a>>ecc.b>>ecc.p;
+	elliptic ecc;   
+	point g, c1, c2, msg, dec_msg, pA;
+	long int n, nA, k;
+	cout<<"\nElliptic curve : (y^2)mod p = (x^3 + ax + b) mod p";
+	cout<<"\nEnter values for a, b and p : \n";
+	cin>>ecc.a>>ecc.b>>ecc.p;
 
-    cout<<"\nEnter msg for encryption : x and y values : ";
-    cin>>msg.x>>msg.y;
+	g = generateBasePoint(ecc);
+	n = findOrder(ecc, g);
+	cout<<"\nBase Point : ("<<g.x<<","<<g.y<<")";
+	cout<<"\nOrder : "<<n;
 
-    g = generateBasePoint(ecc);
-    n = findOrder(ecc, g);
+	nA = genPrivKey();
+	pA = genPubKey(g, nA, ecc);
+	cout<<"\nPublic Key : ("<<pA.x<<","<<pA.y<<")";
+	k  = genEphKey();
 
-    nA = genPrivKey();
-    pA = genPubKey(g, nA, ecc);
-    k  = genEphKey();
+	cout<<"\nEnter msg for encryption x and y values : \n";
+	cin>>msg.x>>msg.y;
 
-    ecc_enc(k, g, msg, pA, &c1, &c2, ecc);
-    cout<<"Encrypted msg : {("<<c1.x<<","<<c1.y<<") , ("<<c2.x<<","<<c2.y<<")}";
+	ecc_enc(k, g, msg, pA, &c1, &c2, ecc);
+	cout<<"\nEncrypted msg : {("<<c1.x<<","<<c1.y<<") , ("<<c2.x<<","<<c2.y<<")}";
 
-    cout<<"\nDecryption :";
-    dec_msg = ecc_dec(nA, c1, c2, ecc);
-    cout<<"Decrypted msg : ("<<dec_msg.x<<","<<dec_msg.y<<")";
-  
-    return 0;
+	cout<<"\nDecryption : ";
+	dec_msg = ecc_dec(nA, c1, c2, ecc);
+
+	cout<<"\nDecrypted msg : ("<<dec_msg.x<<","<<dec_msg.y<<")\n";
+
+	return 0;
 }
